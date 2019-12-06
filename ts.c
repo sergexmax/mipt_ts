@@ -41,6 +41,8 @@ main(int argc, char *argv[])
         char file_name[FILENAME_MAX_LENGTH];
         pid_t ppid;
         pid_t chpid;
+        sigset_t mask;
+        sigset_t oldmask;
 
         /* Get file name. */
         if (argc < 2) {
@@ -50,6 +52,13 @@ main(int argc, char *argv[])
         } else {
                 strcpy(file_name, argv[1]);
         }
+
+        /* Block some signals. */
+        sigemptyset(&mask);
+        sigaddset(&mask, SIGUSR1);
+        sigaddset(&mask, SIGUSR2);
+        sigaddset(&mask, SIGCHLD);
+        sigprocmask(SIG_BLOCK, &mask, &oldmask);
 
         /* Get parent pid. */
         ppid = getpid();
@@ -68,8 +77,6 @@ main(int argc, char *argv[])
                 char file_path[PATHNAME_MAX_LENGTH];
                 char *buf;
                 int read_size;
-                sigset_t mask;
-                sigset_t oldmask;
 
                 // printf("Hello World! I am the %s (%d).\n", name, getpid());
 
@@ -116,8 +123,6 @@ main(int argc, char *argv[])
         /* PARENT */
         else { /* chpid > 0 */
                 // const char name[] = "Parent";
-                sigset_t mask;
-                sigset_t oldmask;
                 char c;
 
                 // printf("Hello World! I am the %s (%d).\n", name, getpid());
@@ -126,11 +131,6 @@ main(int argc, char *argv[])
                 signal(SIGUSR1, &parent_sigusr1);
                 signal(SIGUSR2, &parent_sigusr2);
                 signal(SIGCHLD, &sigchld);
-                sigemptyset(&mask);
-                sigaddset(&mask, SIGUSR1);
-                sigaddset(&mask, SIGUSR2);
-                sigaddset(&mask, SIGCHLD);
-                sigprocmask(SIG_BLOCK, &mask, &oldmask);
 
                 /* Write file. */
                 while(true) {

@@ -1,5 +1,7 @@
 # Project specific
 ts
+test.sh
+diff.sh
 
 # Prerequisites
 *.d
