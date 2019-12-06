@@ -26,6 +26,8 @@ enum {
 };
 
 static int bit;
+static char c[ATOMIC_BLOCK_SIZE];
+static int pos;
 
 void
 child_sigusr1(int nsig); /* Receive signal that parent received previous bit. */
@@ -129,7 +131,6 @@ main(int argc, char *argv[])
         /* PARENT */
         else { /* chpid > 0 */
                 // const char name[] = "Parent";
-                char c;
 
                 // printf("Hello World! I am the %s (%d).\n", name, getpid());
 
@@ -140,13 +141,19 @@ main(int argc, char *argv[])
 
                 /* Write file. */
                 while(true) {
-                        c = '\0';
-                        for (int i = 0; i < 8; ++i) {
-                                sigsuspend(&oldmask);
-                                c |= bit << (7 - i);
-                                kill(chpid, SIGUSR1);
+                        memset(c, '\0', sizeof(c));
+                        for (pos = 0; pos < sizeof(c); ++pos) {
+                                for (int i = 0; i < 8; ++i) {
+                                        sigsuspend(&oldmask);
+                                        c[pos] |= bit << (7 - i);
+                                        if (i != 7)
+                                                kill(chpid, SIGUSR1);
+                                }
+                                if (pos != sizeof(c) - 1)
+                                        kill(chpid, SIGUSR1);
                         }
-                        write(1, &c, 1);
+                        write(1, &c, sizeof(c));
+                        kill(chpid, SIGUSR1);
                 }
         }
 
@@ -181,6 +188,8 @@ void
 sigchld(int nsig)
 {
         // printf("Received signal from child.\n");
+        if (pos != 0)
+                write(1, &c, pos);
         exit(EXIT_SUCCESS);
 }
 
