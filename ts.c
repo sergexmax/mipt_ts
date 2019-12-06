@@ -1,5 +1,6 @@
 #define _GNU_SOURCE /* For sigset_t. */
 
+#include <sys/prctl.h>
 #include <sys/stat.h>
 #include <sys/types.h>
 #include <sys/wait.h>
@@ -34,6 +35,8 @@ void
 parent_sigusr2(int nsig); /* Receive bit '1' */
 void
 sigchld(int nsig); /* Receive signal that child finished. */
+void
+sighup(int nsig); /* Receive signal from OS that parent dead. */
 
 int
 main(int argc, char *argv[])
@@ -80,6 +83,11 @@ main(int argc, char *argv[])
 
                 // printf("Hello World! I am the %s (%d).\n", name, getpid());
 
+                if (prctl(PR_SET_PDEATHSIG, SIGHUP) < 0) {
+                        perror("prctl");
+                        exit(errno);
+                }
+
                 /* Open file for reading. */
                 sprintf(file_path, "%s%s", DATA_PATH, file_name);
                 if ((file_fd_read = open(file_path, O_RDONLY | O_NONBLOCK)) < 0) {
@@ -89,9 +97,7 @@ main(int argc, char *argv[])
 
                 /* Prepare signals. */
                 signal(SIGUSR1, &child_sigusr1);
-                sigemptyset(&mask);
-                sigaddset(&mask, SIGUSR1);
-                sigprocmask(SIG_BLOCK, &mask, &oldmask);
+                signal(SIGHUP, &sighup);
 
                 /* Read file. */
                 if ((buf = malloc(ATOMIC_BLOCK_SIZE)) == NULL) {
@@ -176,4 +182,12 @@ sigchld(int nsig)
 {
         // printf("Received signal from child.\n");
         exit(EXIT_SUCCESS);
+}
+
+/* Receive signal from OS that parent dead. */
+void
+sighup(int nsig)
+{
+        fprintf(stderr, "Parent dead.\n");
+        exit(EXIT_FAILURE);
 }
